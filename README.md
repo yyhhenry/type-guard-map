@@ -2,6 +2,8 @@
 
 A set of utility functions to create type guards and parsers for TypeScript.
 
+You can create type guards with a simple object, while the intellisense can guide you through the whole process.
+
 ## Example
 
 ```ts
