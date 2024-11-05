@@ -1,8 +1,9 @@
 {
   "name": "type-guard-map",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
-  "description": "TypeScript Type Guards generator from Record",
+  "readme": "README.md",
+  "description": "A set of utility functions to create type guards and parsers for TypeScript.",
   "keywords": [
     "typescript"
   ],
