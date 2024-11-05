@@ -3,7 +3,10 @@ import _ from 'lodash';
 /**
  * Type guard of T.
  */
-export type TypeGuard<T> = (v: unknown) => v is T;
+export type TypeGuard<T> = (
+    v: unknown,
+    onError?: (msg: string) => unknown,
+) => v is T;
 
 /**
  * Type guard of object (non-null).
@@ -106,22 +109,41 @@ export type TypeGuardMap<T> =
  *
  * Do not pass extra properties to the object, otherwise it will cause a type error.
  */
-export function checkWithMap<T>(v: unknown, guardMap: TypeGuardMap<T>): v is T {
+export function checkWithMap<T>(
+    v: unknown,
+    guardMap: TypeGuardMap<T>,
+    onError?: (msg: string) => unknown,
+): v is T {
     if (typeof guardMap === 'string') {
-        return checkAtomicType(v, guardMap);
+        const result = checkAtomicType(v, guardMap);
+        if (!result) {
+            onError?.(`Expected ${guardMap}, got ${typeof v}`);
+        }
+        return result;
     }
     if (isAnyFn(guardMap)) {
-        return guardMap(v);
+        let called = false;
+        const err = (msg: string) => {
+            if (!called) {
+                onError?.(msg);
+            }
+            called = true;
+        };
+        const result = guardMap(v, err);
+        if (!result) {
+            err('Custom guard failed');
+        }
+        return result;
     }
-    if (!isPartialUnknown<T>(v)) {
+    if (!isPartialUnknown<Record<string, unknown>>(v)) {
+        onError?.('Expected object, got non-object');
         return false;
     }
     for (const key in guardMap) {
-        if (!(key in v)) {
-            return false;
-        }
-        // assume key is keyof T, otherwise it is the user's fault.
-        if (!checkWithMap(v[key as keyof T], guardMap[key])) {
+        const err = (msg: string) => {
+            onError?.(`in ${key}: ${msg}`);
+        };
+        if (!checkWithMap(v[key], guardMap[key], err)) {
             return false;
         }
     }
@@ -137,9 +159,9 @@ export function asTypeGuard<Name extends AtomicTypeName>(
 ): TypeGuard<AtomicTypeOfName<Name>>;
 export function asTypeGuard<T>(guardMap: TypeGuardMap<T>): TypeGuard<T>;
 export function asTypeGuard<T>(guardMap: TypeGuardMap<T>): TypeGuard<T> {
-    return (v: unknown): v is T => checkWithMap(v, guardMap);
+    return (v: unknown, onError?: (msg: string) => unknown): v is T =>
+        checkWithMap(v, guardMap, onError);
 }
-
 /**
  * Check if the value is T[] with the guard map of T.
  */
@@ -150,7 +172,21 @@ export function isArrayOf<Name extends AtomicTypeName>(
 export function isArrayOf<T>(guardMap: TypeGuardMap<T>): TypeGuard<T[]>;
 export function isArrayOf<T>(guardMap: TypeGuardMap<T>): TypeGuard<T[]> {
     const guard = asTypeGuard(guardMap);
-    return (v: unknown) => Array.isArray(v) && v.every(guard);
+    return (v: unknown, onError?: (msg: string) => unknown): v is T[] => {
+        if (!Array.isArray(v)) {
+            onError?.('Expected array, got non-array');
+            return false;
+        }
+        for (const [id, item] of v.entries()) {
+            const err = (msg: string) => {
+                onError?.(`in [${id}]: ${msg}`);
+            };
+            if (!guard(item, err)) {
+                return false;
+            }
+        }
+        return true;
+    };
 }
 /**
  * Check if the value is { [key: string]: T } with the guard map of T.
@@ -165,8 +201,24 @@ export function isRecordOf<T>(
     guardMap: TypeGuardMap<T>,
 ): TypeGuard<{ [key: string]: T }> {
     const guard = asTypeGuard(guardMap);
-    return (v: unknown): v is { [key: string]: T } =>
-        isNonNullableObject(v) && Object.values(v).every(guard);
+    return (
+        v: unknown,
+        onError?: (msg: string) => unknown,
+    ): v is { [key: string]: T } => {
+        if (!isPartialUnknown(v)) {
+            onError?.('Expected object, got non-object');
+            return false;
+        }
+        for (const [key, item] of Object.entries(v)) {
+            const err = (msg: string) => {
+                onError?.(`in ${key}: ${msg}`);
+            };
+            if (!guard(item, err)) {
+                return false;
+            }
+        }
+        return true;
+    };
 }
 
 /**
@@ -182,7 +234,12 @@ export function isOptional<T>(
     guardMap: TypeGuardMap<T>,
 ): TypeGuard<T | undefined> {
     const guard = asTypeGuard(guardMap);
-    return (v: unknown): v is T | undefined => v === undefined || guard(v);
+    return (
+        v: unknown,
+        onError?: (msg: string) => unknown,
+    ): v is T | undefined => {
+        return v === undefined || guard(v, onError);
+    };
 }
 /**
  * Check if the value is one of the literals (string, number, boolean) with the guard map of T.
@@ -191,7 +248,13 @@ export function isLiteral<T extends string | number | boolean>(
     ...literals: T[]
 ): TypeGuard<T> {
     const set = new Set(literals);
-    return (v: unknown): v is T => set.has(v as T);
+    return (v: unknown, onError?: (msg: string) => unknown): v is T => {
+        if (!set.has(v as T)) {
+            onError?.(`Expected one of ${literals.join(', ')}, got ${v}`);
+            return false;
+        }
+        return true;
+    };
 }
 
 /**
@@ -212,10 +275,25 @@ export type TupleTypeGuard<T extends unknown[]> = T extends [
 export function isTuple<T extends unknown[]>(
     ...guards: TupleTypeGuard<T>
 ): TypeGuard<T> {
-    return (v: unknown): v is T =>
-        Array.isArray(v) &&
-        v.length >= guards.length &&
-        guards.every((map, i) => checkWithMap(v[i], map));
+    return (v: unknown, onError?: (msg: string) => unknown): v is T => {
+        if (!Array.isArray(v)) {
+            onError?.('Expected array, got non-array');
+            return false;
+        }
+        if (v.length < guards.length) {
+            onError?.('Too few items in tuple');
+            return false;
+        }
+        for (const [id, guard] of guards.entries()) {
+            const err = (msg: string) => {
+                onError?.(`in [${id}]: ${msg}`);
+            };
+            if (!checkWithMap(v[id], guard, err)) {
+                return false;
+            }
+        }
+        return true;
+    };
 }
 
 /**
@@ -241,8 +319,46 @@ export function isUnion<T1, T2, T3, T4>(
 export function isUnion<T extends unknown[]>(
     ...guards: TypeGuardMap<T[number]>[]
 ): TypeGuard<T[number]> {
-    return (v: unknown): v is T[number] =>
-        guards.some((map) => checkWithMap(v, map));
+    return (v: unknown, onError?: (msg: string) => unknown): v is T[number] => {
+        const errors: string[] = [];
+        for (const guard of guards) {
+            const err = (msg: string) => {
+                errors.push(msg);
+            };
+            if (checkWithMap(v, guard, err)) {
+                return true;
+            }
+        }
+        onError?.(`Should be one of variants: ${errors.join(', ')}`);
+        return false;
+    };
+}
+
+/**
+ * Type guard with a condition.
+ */
+export function withCondition<T1>(
+    guardMap: TypeGuardMap<T1>,
+    condition: (v: T1, onError?: (msg: string) => unknown) => boolean,
+): TypeGuard<T1> {
+    const guard = asTypeGuard(guardMap);
+    return (v: unknown, onError?: (msg: string) => unknown): v is T1 => {
+        if (!guard(v, onError)) {
+            return false;
+        }
+        let called = false;
+        const err = (msg: string) => {
+            if (!called) {
+                onError?.(msg);
+            }
+            called = true;
+        };
+        const result = condition(v, err);
+        if (!result) {
+            err('Condition failed');
+        }
+        return result;
+    };
 }
 
 /**
@@ -256,7 +372,10 @@ export function asParser<T>(
     return (json: string) => {
         try {
             const obj = JSON.parse(json);
-            if (!guard(obj)) {
+            const err = (msg: string) => {
+                throw new Error(msg);
+            };
+            if (!guard(obj, err)) {
                 throw new Error('Invalid JSON');
             }
             return obj;

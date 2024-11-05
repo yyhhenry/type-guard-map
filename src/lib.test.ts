@@ -13,29 +13,62 @@ import {
     isRecordOf,
     isOptional,
     asParser,
+    withCondition,
 } from './lib.js';
 
 test('example-snippet', () => {
+    interface Message {
+        role: 'user' | 'assistant' | 'system';
+        content: string;
+    }
     interface ChatRequest {
         model: string;
         /**
          * Default is true.
          */
         stream?: boolean;
-        messages: {
-            role: 'user' | 'assistant' | 'system';
-            content: string;
-        }[];
+        messages: Message[];
     }
-    const isChatRequest = asTypeGuard<ChatRequest>({
-        model: 'string',
-        stream: isOptional('boolean'),
-        messages: isArrayOf({
+    const isMessages = withCondition(
+        isArrayOf<Message>({
             role: isLiteral('user', 'assistant', 'system'),
             content: 'string',
         }),
+        (v, err) => {
+            if (v.length === 0) {
+                err?.('Messages should not be empty');
+                return false;
+            }
+            return true;
+        },
+    );
+    const printWith = (prefix: string) => (msg: string) =>
+        console.log(prefix, msg);
+    strictEqual(isMessages([{ role: 'user', content: 'hello' }]), true);
+    // with role=Peter: in [0]: in role: Expected one of user, assistant, system, got Peter
+    strictEqual(
+        isMessages(
+            [{ role: 'Peter', content: 'hello' }],
+            printWith(`with role=Peter:`),
+        ),
+        false,
+    );
+    // with content=42: in [0]: in content: Expected string, got number
+    strictEqual(
+        isMessages(
+            [{ role: 'system', content: 42 }],
+            printWith(`with content=42:`),
+        ),
+        false,
+    );
+    // with empty msgs: Messages should not be empty
+    strictEqual(isMessages([], printWith(`with empty msgs:`)), false);
+
+    const chatRequestParser = asParser<ChatRequest>({
+        model: 'string',
+        stream: isOptional('boolean'),
+        messages: isMessages,
     });
-    const chatRequestParser = asParser<ChatRequest>(isChatRequest);
 
     function chatRequest(userInput: string) {
         try {
@@ -43,7 +76,9 @@ test('example-snippet', () => {
             parsed.stream ??= true;
             return parsed;
         } catch (e) {
-            console.trace(e);
+            if (e instanceof Error) {
+                console.log('Invalid ChatRequest:', e.message);
+            }
             return undefined;
         }
     }
@@ -60,12 +95,13 @@ test('example-snippet', () => {
             messages: [{ role: 'user', content: 'hello' }],
         },
     );
+    // Invalid ChatRequest: in messages: Messages should not be empty
     strictEqual(
         chatRequest(
             JSON.stringify({
                 model: 'model',
                 stream: true,
-                messages: [{ role: 'Peter', content: 'Hello' }],
+                messages: [],
             }),
         ),
         undefined,
