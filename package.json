@@ -1,0 +1,35 @@
+{
+  "name": "type-guard-map",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "TypeScript Type Guards generator from Record",
+  "keywords": [
+    "typescript"
+  ],
+  "exports": "./src/lib.ts",
+  "types": "./src/lib.ts",
+  "scripts": {
+    "type-check": "tsc --noEmit -p tsconfig.json",
+    "fmt": "prettier --write src",
+    "lint": "eslint src",
+    "test": "tsx --test src/lib.test.ts",
+    "check:all": "run-s lint type-check test"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@eslint/js": "^9.14.0",
+    "@tsconfig/node20": "^20.1.4",
+    "@types/lodash": "^4.17.13",
+    "@types/node": "^20",
+    "eslint": "^9.14.0",
+    "npm-run-all2": "^7.0.1",
+    "prettier": "^3.3.3",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "typescript-eslint": "^8.13.0"
+  },
+  "dependencies": {
+    "lodash": "^4.17.21"
+  }
+}
