@@ -2,7 +2,10 @@
   "name": "type-guard-map",
   "version": "0.1.1",
   "type": "module",
-  "readme": "README.md",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yyhhenry/type-guard-map"
+  },
   "description": "A set of utility functions to create type guards and parsers for TypeScript.",
   "keywords": [
     "typescript"
