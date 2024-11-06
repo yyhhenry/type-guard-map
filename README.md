@@ -6,6 +6,8 @@ You can create type guards with a simple object, while the intellisense can guid
 
 And surprisingly, user friendly error messages are automatically generated.
 
+Now we recommend still write the interface for the type you want to guard, to make intellisense work better.
+
 ## Example
 
 ```ts
