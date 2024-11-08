@@ -1,18 +1,3 @@
-# type-guard-map
-
-A set of utility functions to create type guards and parsers for TypeScript.
-
-You can create type guards with a simple object, while the intellisense can
-guide you through the whole process.
-
-And surprisingly, user friendly error messages are automatically generated.
-
-Now we recommend still write the interface for the type you want to guard, to
-make intellisense work better.
-
-## Example
-
-```ts
 import {
   asParser,
   isArrayOf,
@@ -91,4 +76,3 @@ chatRequest(
     messages: [],
   }),
 );
-```
