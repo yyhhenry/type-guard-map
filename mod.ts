@@ -15,16 +15,19 @@ export type TypeGuard<T> = (
 export function isNonNullableObject(v: unknown): v is object {
   return typeof v === "object" && v !== null;
 }
+
 /**
  * Any function type (without `any` type to make eslint happy).
  */
 export type AnyFn = (...args: never[]) => unknown;
+
 /**
  * Type guard of function.
  */
 export function isAnyFn(v: unknown): v is AnyFn {
   return typeof v === "function";
 }
+
 /**
  * Describes any object (but may be T).
  *
@@ -35,6 +38,7 @@ export function isAnyFn(v: unknown): v is AnyFn {
 export type PartialUnknown<T> = {
   [P in keyof T]?: unknown;
 };
+
 /**
  * Check if the value is any object. Then you can use `v[key]` with intellisense.
  */
@@ -81,6 +85,7 @@ export type AtomicTypeOfName<Name extends AtomicTypeName> = {
   symbol: symbol;
   undefined: undefined;
 }[Name];
+
 /**
  * Check if the value is specific atomic type.
  */
@@ -154,23 +159,31 @@ export function checkWithMap<T>(
 /**
  * Convert the guard map to a normal type guard.
  *
- * Do not pass extra properties to the object, otherwise it will cause a type error.
+ * Guard map can be a string of atomic type name.
  */
 export function asTypeGuard<Name extends AtomicTypeName>(
   name: Name
 ): TypeGuard<AtomicTypeOfName<Name>>;
+/**
+ * Convert the guard map to a normal type guard.
+ *
+ * Do not pass extra properties to the object, otherwise it will cause a type error.
+ */
 export function asTypeGuard<T>(guardMap: TypeGuardMap<T>): TypeGuard<T>;
 export function asTypeGuard<T>(guardMap: TypeGuardMap<T>): TypeGuard<T> {
   return (v: unknown, onError?: (msg: string) => unknown): v is T =>
     checkWithMap(v, guardMap, onError);
 }
-/**
- * Check if the value is T[] with the guard map of T.
- */
 
+/**
+ * Check if the value is T[] with AtomicTypeName.
+ */
 export function isArrayOf<Name extends AtomicTypeName>(
   name: Name
 ): TypeGuard<AtomicTypeOfName<Name>[]>;
+/**
+ * Check if the value is T[] with the guard map of T.
+ */
 export function isArrayOf<T>(guardMap: TypeGuardMap<T>): TypeGuard<T[]>;
 export function isArrayOf<T>(guardMap: TypeGuardMap<T>): TypeGuard<T[]> {
   const guard = asTypeGuard(guardMap);
@@ -190,12 +203,16 @@ export function isArrayOf<T>(guardMap: TypeGuardMap<T>): TypeGuard<T[]> {
     return true;
   };
 }
+
 /**
- * Check if the value is { [key: string]: T } with the guard map of T.
+ * Check if the value is { [key: string]: AtomicTypeOfName<Name> } with AtomicTypeName.
  */
 export function isRecordOf<Name extends AtomicTypeName>(
   name: Name
 ): TypeGuard<{ [key: string]: AtomicTypeOfName<Name> }>;
+/**
+ * Check if the value is { [key: string]: T } with the guard map of T.
+ */
 export function isRecordOf<T>(
   guardMap: TypeGuardMap<T>
 ): TypeGuard<{ [key: string]: T }>;
@@ -224,11 +241,14 @@ export function isRecordOf<T>(
 }
 
 /**
- * Check if the value is T | undefined with the guard map of T.
+ * Check if the value is T | undefined with AtomicTypeName.
  */
 export function isOptional<Name extends AtomicTypeName>(
   name: Name
 ): TypeGuard<AtomicTypeOfName<Name> | undefined>;
+/**
+ * Check if the value is T | undefined with the guard map of T.
+ */
 export function isOptional<T>(
   guardMap: TypeGuardMap<T>
 ): TypeGuard<T | undefined>;
@@ -243,6 +263,7 @@ export function isOptional<T>(
     return v === undefined || guard(v, onError);
   };
 }
+
 /**
  * Check if the value is one of the literals (string, number, boolean) with the guard map of T.
  */
@@ -299,7 +320,7 @@ export function isTuple<T extends unknown[]>(
 }
 
 /**
- * Check if the value is (T1 | T2 | ...) with the guard map of T1, T2, ...
+ * Check if the value is (T1 | T2) with the guard map of T1, T2.
  *
  * Generic type `T` cannot be omitted if there is some AtomicTypeName in the arguments.
  */
@@ -307,11 +328,21 @@ export function isUnion<T1, T2>(
   map1: TypeGuardMap<T1>,
   map2: TypeGuardMap<T2>
 ): TypeGuard<T1 | T2>;
+/**
+ * Check if the value is (T1 | T2 | T3) with the guard map of T1, T2, T3.
+ *
+ * Generic type `T` cannot be omitted if there is some AtomicTypeName in the arguments.
+ */
 export function isUnion<T1, T2, T3>(
   map1: TypeGuardMap<T1>,
   map2: TypeGuardMap<T2>,
   map3: TypeGuardMap<T3>
 ): TypeGuard<T1 | T2 | T3>;
+/**
+ * Check if the value is (T1 | T2 | T3 | T4) with the guard map of T1, T2, T3, T4.
+ *
+ * Generic type `T` cannot be omitted if there is some AtomicTypeName in the arguments.
+ */
 export function isUnion<T1, T2, T3, T4>(
   map1: TypeGuardMap<T1>,
   map2: TypeGuardMap<T2>,
@@ -337,16 +368,18 @@ export function isUnion<T extends unknown[]>(
 }
 
 /**
- * Type guard with a condition.
+ * Type guard with AtomicTypeName and condition.
  */
-
 export function withCondition<Name extends AtomicTypeName>(
-  guardMap: Name,
+  name: Name,
   condition: (
     v: AtomicTypeOfName<Name>,
     onError?: (msg: string) => unknown
   ) => boolean
 ): TypeGuard<AtomicTypeOfName<Name>>;
+/**
+ * Type guard with the guard map of T and condition.
+ */
 export function withCondition<T1>(
   guardMap: TypeGuardMap<T1>,
   condition: (v: T1, onError?: (msg: string) => unknown) => boolean
