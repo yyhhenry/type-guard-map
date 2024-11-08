@@ -6,7 +6,7 @@ import _ from "lodash";
  */
 export type TypeGuard<T> = (
   v: unknown,
-  onError?: (msg: string) => unknown
+  onError?: (msg: string) => unknown,
 ) => v is T;
 
 /**
@@ -60,18 +60,12 @@ export type AtomicTypeName =
 /**
  * Name of atomic types.
  */
-export type NameOfAtomicType<T> = T extends string
-  ? "string"
-  : T extends number
-  ? "number"
-  : T extends bigint
-  ? "bigint"
-  : T extends boolean
-  ? "boolean"
-  : T extends symbol
-  ? "symbol"
-  : T extends undefined
-  ? "undefined"
+export type NameOfAtomicType<T> = T extends string ? "string"
+  : T extends number ? "number"
+  : T extends bigint ? "bigint"
+  : T extends boolean ? "boolean"
+  : T extends symbol ? "symbol"
+  : T extends undefined ? "undefined"
   : never;
 
 /**
@@ -91,7 +85,7 @@ export type AtomicTypeOfName<Name extends AtomicTypeName> = {
  */
 export function checkAtomicType<Name extends AtomicTypeName>(
   v: unknown,
-  name: Name
+  name: Name,
 ): v is AtomicTypeOfName<Name> {
   const typeName: string = typeof v;
   return typeName === name;
@@ -105,11 +99,10 @@ export function checkAtomicType<Name extends AtomicTypeName>(
 export type TypeGuardMap<T> =
   | NameOfAtomicType<T>
   | TypeGuard<T>
-  | (T extends object
-      ? {
-          [P in keyof T]: TypeGuardMap<T[P]>;
-        }
-      : never);
+  | (T extends object ? {
+      [P in keyof T]: TypeGuardMap<T[P]>;
+    }
+    : never);
 
 /**
  * Check if the value is T with the guard map.
@@ -119,7 +112,7 @@ export type TypeGuardMap<T> =
 export function checkWithMap<T>(
   v: unknown,
   guardMap: TypeGuardMap<T>,
-  onError?: (msg: string) => unknown
+  onError?: (msg: string) => unknown,
 ): v is T {
   if (typeof guardMap === "string") {
     const result = checkAtomicType(v, guardMap);
@@ -162,7 +155,7 @@ export function checkWithMap<T>(
  * Guard map can be a string of atomic type name.
  */
 export function asTypeGuard<Name extends AtomicTypeName>(
-  name: Name
+  name: Name,
 ): TypeGuard<AtomicTypeOfName<Name>>;
 /**
  * Convert the guard map to a normal type guard.
@@ -179,7 +172,7 @@ export function asTypeGuard<T>(guardMap: TypeGuardMap<T>): TypeGuard<T> {
  * Check if the value is T[] with AtomicTypeName.
  */
 export function isArrayOf<Name extends AtomicTypeName>(
-  name: Name
+  name: Name,
 ): TypeGuard<AtomicTypeOfName<Name>[]>;
 /**
  * Check if the value is T[] with the guard map of T.
@@ -208,21 +201,21 @@ export function isArrayOf<T>(guardMap: TypeGuardMap<T>): TypeGuard<T[]> {
  * Check if the value is { [key: string]: AtomicTypeOfName<Name> } with AtomicTypeName.
  */
 export function isRecordOf<Name extends AtomicTypeName>(
-  name: Name
+  name: Name,
 ): TypeGuard<{ [key: string]: AtomicTypeOfName<Name> }>;
 /**
  * Check if the value is { [key: string]: T } with the guard map of T.
  */
 export function isRecordOf<T>(
-  guardMap: TypeGuardMap<T>
+  guardMap: TypeGuardMap<T>,
 ): TypeGuard<{ [key: string]: T }>;
 export function isRecordOf<T>(
-  guardMap: TypeGuardMap<T>
+  guardMap: TypeGuardMap<T>,
 ): TypeGuard<{ [key: string]: T }> {
   const guard = asTypeGuard(guardMap);
   return (
     v: unknown,
-    onError?: (msg: string) => unknown
+    onError?: (msg: string) => unknown,
   ): v is { [key: string]: T } => {
     if (!isPartialUnknown(v)) {
       onError?.("Expected object, got non-object");
@@ -244,21 +237,21 @@ export function isRecordOf<T>(
  * Check if the value is T | undefined with AtomicTypeName.
  */
 export function isOptional<Name extends AtomicTypeName>(
-  name: Name
+  name: Name,
 ): TypeGuard<AtomicTypeOfName<Name> | undefined>;
 /**
  * Check if the value is T | undefined with the guard map of T.
  */
 export function isOptional<T>(
-  guardMap: TypeGuardMap<T>
+  guardMap: TypeGuardMap<T>,
 ): TypeGuard<T | undefined>;
 export function isOptional<T>(
-  guardMap: TypeGuardMap<T>
+  guardMap: TypeGuardMap<T>,
 ): TypeGuard<T | undefined> {
   const guard = asTypeGuard(guardMap);
   return (
     v: unknown,
-    onError?: (msg: string) => unknown
+    onError?: (msg: string) => unknown,
   ): v is T | undefined => {
     return v === undefined || guard(v, onError);
   };
@@ -285,9 +278,8 @@ export function isLiteral<T extends string | number | boolean>(
  */
 export type TupleTypeGuard<T extends unknown[]> = T extends [
   infer First,
-  ...infer Rest
-]
-  ? [TypeGuardMap<First>, ...TupleTypeGuard<Rest>]
+  ...infer Rest,
+] ? [TypeGuardMap<First>, ...TupleTypeGuard<Rest>]
   : [];
 
 /**
@@ -326,7 +318,7 @@ export function isTuple<T extends unknown[]>(
  */
 export function isUnion<T1, T2>(
   map1: TypeGuardMap<T1>,
-  map2: TypeGuardMap<T2>
+  map2: TypeGuardMap<T2>,
 ): TypeGuard<T1 | T2>;
 /**
  * Check if the value is (T1 | T2 | T3) with the guard map of T1, T2, T3.
@@ -336,7 +328,7 @@ export function isUnion<T1, T2>(
 export function isUnion<T1, T2, T3>(
   map1: TypeGuardMap<T1>,
   map2: TypeGuardMap<T2>,
-  map3: TypeGuardMap<T3>
+  map3: TypeGuardMap<T3>,
 ): TypeGuard<T1 | T2 | T3>;
 /**
  * Check if the value is (T1 | T2 | T3 | T4) with the guard map of T1, T2, T3, T4.
@@ -347,7 +339,7 @@ export function isUnion<T1, T2, T3, T4>(
   map1: TypeGuardMap<T1>,
   map2: TypeGuardMap<T2>,
   map3: TypeGuardMap<T3>,
-  map4: TypeGuardMap<T4>
+  map4: TypeGuardMap<T4>,
 ): TypeGuard<T1 | T2 | T3 | T4>;
 export function isUnion<T extends unknown[]>(
   ...guards: TypeGuardMap<T[number]>[]
@@ -374,19 +366,19 @@ export function withCondition<Name extends AtomicTypeName>(
   name: Name,
   condition: (
     v: AtomicTypeOfName<Name>,
-    onError?: (msg: string) => unknown
-  ) => boolean
+    onError?: (msg: string) => unknown,
+  ) => boolean,
 ): TypeGuard<AtomicTypeOfName<Name>>;
 /**
  * Type guard with the guard map of T and condition.
  */
 export function withCondition<T1>(
   guardMap: TypeGuardMap<T1>,
-  condition: (v: T1, onError?: (msg: string) => unknown) => boolean
+  condition: (v: T1, onError?: (msg: string) => unknown) => boolean,
 ): TypeGuard<T1>;
 export function withCondition<T1>(
   guardMap: TypeGuardMap<T1>,
-  condition: (v: T1, onError?: (msg: string) => unknown) => boolean
+  condition: (v: T1, onError?: (msg: string) => unknown) => boolean,
 ): TypeGuard<T1> {
   const guard = asTypeGuard(guardMap);
   return (v: unknown, onError?: (msg: string) => unknown): v is T1 => {
@@ -413,7 +405,7 @@ export function withCondition<T1>(
  */
 export function asParser<T>(
   guardMap: TypeGuardMap<T>,
-  defaultValue?: T
+  defaultValue?: T,
 ): (json: string) => T {
   const guard = asTypeGuard(guardMap);
   return (json: string) => {
