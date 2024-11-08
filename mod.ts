@@ -1,6 +1,3 @@
-// @deno-types="@types/lodash"
-import _ from "lodash";
-
 /**
  * Type guard of T.
  */
@@ -442,7 +439,7 @@ export function asParser<T>(
       return obj;
     } catch (e) {
       if (defaultValue !== undefined) {
-        return _.cloneDeep(defaultValue);
+        return structuredClone(defaultValue);
       }
       throw e;
     }
