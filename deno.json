@@ -5,6 +5,7 @@
   "license": "MIT",
   "imports": {
     "@std/assert": "jsr:@std/assert@^1.0.7",
+    "@types/lodash": "npm:@types/lodash@^4.17.13",
     "lodash": "npm:lodash@^4.17.21"
   }
 }

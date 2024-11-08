@@ -3,6 +3,7 @@
   "specifiers": {
     "jsr:@std/assert@^1.0.7": "1.0.7",
     "jsr:@std/internal@^1.0.5": "1.0.5",
+    "npm:@types/lodash@^4.17.13": "4.17.13",
     "npm:@types/node@*": "22.5.4",
     "npm:lodash@^4.17.21": "4.17.21"
   },
@@ -18,6 +19,9 @@
     }
   },
   "npm": {
+    "@types/lodash@4.17.13": {
+      "integrity": "sha512-lfx+dftrEZcdBPczf9d0Qv0x+j/rfNCMuC6OcfXmO8gkfeNAY88PgKUbvG56whcN23gc27yenwF6oJZXGFpYxg=="
+    },
     "@types/node@22.5.4": {
       "integrity": "sha512-FDuKUJQm/ju9fT/SeX/6+gBzoPzlVCzfzmGkwKvRHQVxi4BntVbyIwf6a4Xn62mrvndLiml6z/UBXIdEVjQLXg==",
       "dependencies": [
@@ -34,6 +38,7 @@
   "workspace": {
     "dependencies": [
       "jsr:@std/assert@^1.0.7",
+      "npm:@types/lodash@^4.17.13",
       "npm:lodash@^4.17.21"
     ]
   }

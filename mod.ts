@@ -1,3 +1,4 @@
+// @deno-types="@types/lodash"
 import _ from "lodash";
 
 /**
