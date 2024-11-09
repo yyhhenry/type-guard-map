@@ -267,15 +267,27 @@ export function isOptional<T>(
 }
 
 /**
- * Check if the value is one of the literals (string, number, boolean) with the guard map of T.
+ * Check if the value is one of the literals (string, number, boolean).
  */
-export function isLiteral<T extends string | number | boolean>(
-  ...literals: T[]
-): TypeGuard<T> {
+export function isLiteral<T extends readonly (string | number | boolean)[]>(
+  ...literals: T
+): TypeGuard<T[number]> {
   const set = new Set(literals);
-  return (v: unknown, onError?: (msg: string) => unknown): v is T => {
-    if (!set.has(v as T)) {
-      onError?.(`Expected one of ${literals.join(", ")}, got ${v}`);
+  return (v: unknown, onError?: (msg: string) => unknown): v is T[number] => {
+    if (
+      typeof v !== "string" && typeof v !== "number" && typeof v !== "boolean"
+    ) {
+      onError?.(
+        `Expected a literal, got non-literal ${typeof v}: ${JSON.stringify(v)}`,
+      );
+      return false;
+    }
+    if (!set.has(v)) {
+      onError?.(
+        `Expected one of ${
+          literals.map((v) => JSON.stringify(v)).join(", ")
+        }, got ${JSON.stringify(v)}`,
+      );
       return false;
     }
     return true;
