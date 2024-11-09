@@ -28,7 +28,7 @@ export type Messages = InferType<typeof Messages>;
 
 const ChatRequest = struct({
   model: atomic("string"),
-  stream: optional(atomic("boolean")),
+  stream: optional("boolean"),
   messages: Messages,
 });
 export type ChatRequest = InferType<typeof ChatRequest>;

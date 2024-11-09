@@ -1,4 +1,4 @@
-import { err, fin, ok, type Result, wrapFn } from "@yyhhenry/rust-result";
+import { err, fin, type Result, wrapFn } from "@yyhhenry/rust-result";
 
 /**
  * Type guard of object (non-null).
@@ -78,6 +78,16 @@ export interface TypeHelper<T> {
     guard(v: unknown, onErr?: (e: Error) => unknown): v is T;
     validate(v: unknown): Result<T, Error>;
     parse(text: string): Result<T, Error>;
+    storage<Ref>(
+        useStorage: (key: string, def: T, _: undefined, options: {
+            serializer: {
+                read(json: string): T;
+                write(v: T): string;
+            };
+        }) => Ref,
+        key: string,
+        def: T,
+    ): Ref;
 }
 export type InferType<Helper extends TypeHelper<unknown>> = Helper extends
     TypeHelper<infer T> ? T : never;
@@ -103,6 +113,24 @@ class TypeHelperImpl<T> implements TypeHelper<T> {
     }
     parse(text: string): Result<T, Error> {
         return parseJson(text).andThen((v) => this.validate(v));
+    }
+    storage<Ref>(
+        useStorage: (key: string, def: T, _: undefined, options: {
+            serializer: {
+                read(json: string): T;
+                write(v: T): string;
+            };
+        }) => Ref,
+        key: string,
+        def: T,
+    ): Ref {
+        return useStorage(key, def, undefined, {
+            serializer: {
+                read: (json) =>
+                    this.parse(json).unwrapOrElse(() => structuredClone(def)),
+                write: (v) => JSON.stringify(v),
+            },
+        });
     }
 }
 
@@ -188,13 +216,13 @@ export function struct<T extends Record<string, TypeHelper<unknown>>>(
     });
 }
 
-export function array<T>(itemHelper: TypeHelper<T>): TypeHelper<T[]> {
+export function array<T>(helper: TypeHelper<T>): TypeHelper<T[]> {
     return new TypeHelperImpl((v) => {
         if (!Array.isArray(v)) {
             return leafExpect("array", v);
         }
         for (let i = 0; i < v.length; i++) {
-            const result = itemHelper.validateBase(v[i]);
+            const result = helper.validateBase(v[i]);
             if (result.isErr()) {
                 result.e.errIn(i);
                 return err(result.e);
@@ -204,11 +232,23 @@ export function array<T>(itemHelper: TypeHelper<T>): TypeHelper<T[]> {
     });
 }
 
-export function optional<T>(helper: TypeHelper<T>): TypeHelper<T | undefined> {
+export type TypeHelperOrAtomic<T> =
+    | TypeHelper<T>
+    | (T extends AtomicTypeOfName<infer Name> ? Name : never);
+export function optional<T>(helper: TypeHelper<T>): TypeHelper<T | undefined>;
+export function optional<Name extends AtomicTypeName>(
+    name: Name,
+): TypeHelper<AtomicTypeOfName<Name> | undefined>;
+export function optional<T>(
+    helperOrAtomic: TypeHelperOrAtomic<T>,
+): TypeHelper<T | undefined> {
     return new TypeHelperImpl((v) => {
         if (v === undefined) {
             return fin();
         }
+        const helper = typeof helperOrAtomic === "string"
+            ? atomic(helperOrAtomic)
+            : helperOrAtomic;
         return helper.validateBase(v);
     });
 }
