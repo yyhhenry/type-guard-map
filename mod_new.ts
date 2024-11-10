@@ -73,21 +73,11 @@ export const parseJson: (text: string) => Result<unknown, Error> = wrapFn(
 export const isTypeHelperSymbol = Symbol("isTypeHelper");
 export interface TypeHelper<T> {
     readonly [isTypeHelperSymbol]: true;
-    validateBase(v: unknown): Result<void, ErrBuilder>;
+    validateBase(v: unknown): Result<T, ErrBuilder>;
 
     guard(v: unknown, onErr?: (e: Error) => unknown): v is T;
     validate(v: unknown): Result<T, Error>;
     parse(text: string): Result<T, Error>;
-    storage<Ref>(
-        useStorage: (key: string, def: T, _: undefined, options: {
-            serializer: {
-                read(json: string): T;
-                write(v: T): string;
-            };
-        }) => Ref,
-        key: string,
-        def: T,
-    ): Ref;
 }
 export type InferType<Helper extends TypeHelper<unknown>> = Helper extends
     TypeHelper<infer T> ? T : never;
@@ -97,11 +87,12 @@ class TypeHelperImpl<T> implements TypeHelper<T> {
     constructor(
         private innerGuard: (v: unknown) => Result<void, ErrBuilder>,
     ) {}
-    validateBase(v: unknown): Result<void, ErrBuilder> {
-        return this.innerGuard(v);
+    validateBase(v: unknown): Result<T, ErrBuilder> {
+        // Safely cast to T.
+        return this.innerGuard(v).map(() => v as T);
     }
     guard(v: unknown, onErr?: (e: Error) => unknown): v is T {
-        const result = this.innerGuard(v);
+        const result = this.validateBase(v);
         if (result.isOk()) {
             return true;
         }
@@ -109,28 +100,10 @@ class TypeHelperImpl<T> implements TypeHelper<T> {
         return false;
     }
     validate(v: unknown): Result<T, Error> {
-        return this.innerGuard(v).map(() => v as T).mapErr((e) => e.toError());
+        return this.validateBase(v).mapErr((e) => e.toError());
     }
     parse(text: string): Result<T, Error> {
         return parseJson(text).andThen((v) => this.validate(v));
-    }
-    storage<Ref>(
-        useStorage: (key: string, def: T, _: undefined, options: {
-            serializer: {
-                read(json: string): T;
-                write(v: T): string;
-            };
-        }) => Ref,
-        key: string,
-        def: T,
-    ): Ref {
-        return useStorage(key, def, undefined, {
-            serializer: {
-                read: (json) =>
-                    this.parse(json).unwrapOrElse(() => structuredClone(def)),
-                write: (v) => JSON.stringify(v),
-            },
-        });
     }
 }
 
@@ -179,6 +152,13 @@ export function atomic<Name extends AtomicTypeName>(
         return leafExpect(name, v);
     });
 }
+
+export const DString = atomic("string");
+export const DNumber = atomic("number");
+export const DBigInt = atomic("bigint");
+export const DBoolean = atomic("boolean");
+export const DSymbol = atomic("symbol");
+export const DUndefined = atomic("undefined");
 
 export type LiteralType = string | number | boolean | null | undefined;
 export function literal<T extends LiteralType[]>(
@@ -232,24 +212,12 @@ export function array<T>(helper: TypeHelper<T>): TypeHelper<T[]> {
     });
 }
 
-export type TypeHelperOrAtomic<T> =
-    | TypeHelper<T>
-    | (T extends AtomicTypeOfName<infer Name> ? Name : never);
-export function optional<T>(helper: TypeHelper<T>): TypeHelper<T | undefined>;
-export function optional<Name extends AtomicTypeName>(
-    name: Name,
-): TypeHelper<AtomicTypeOfName<Name> | undefined>;
-export function optional<T>(
-    helperOrAtomic: TypeHelperOrAtomic<T>,
-): TypeHelper<T | undefined> {
+export function optional<T>(helper: TypeHelper<T>): TypeHelper<T | undefined> {
     return new TypeHelperImpl((v) => {
         if (v === undefined) {
             return fin();
         }
-        const helper = typeof helperOrAtomic === "string"
-            ? atomic(helperOrAtomic)
-            : helperOrAtomic;
-        return helper.validateBase(v);
+        return helper.validateBase(v).map(() => {});
     });
 }
 
@@ -282,7 +250,7 @@ export function union<T extends TypeHelper<unknown>[]>(
         for (const helper of helpers) {
             const result = helper.validateBase(v);
             if (result.isOk()) {
-                return result;
+                return fin();
             }
             errors.push(`(${result.e.asFullMessage()})`);
         }
@@ -295,6 +263,6 @@ export function withCondition<T>(
     condition: (v: T) => Result<void, ErrBuilder>,
 ): TypeHelper<T> {
     return new TypeHelperImpl((v) => {
-        return helper.validateBase(v).andThen(() => condition(v as T));
+        return helper.validateBase(v).andThen((v) => condition(v));
     });
 }
