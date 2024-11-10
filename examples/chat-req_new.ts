@@ -8,6 +8,7 @@ import {
   literal,
   optional,
   struct,
+  type TypeHelper,
   withCondition,
 } from "../mod_new.ts";
 
@@ -26,28 +27,20 @@ const DMessages = withCondition(
   },
 );
 
-const DChatRequest = struct({
+// Infer type from Helper
+export type Messages = InferType<typeof DMessages>;
+
+// Or create Helper from existing type
+export interface ChatRequest {
+  model: string;
+  stream?: boolean;
+  messages: Messages;
+}
+const DChatRequest: TypeHelper<ChatRequest> = struct({
   model: DString,
   stream: optional(DBoolean),
   messages: DMessages,
 });
-export type ChatRequest = InferType<typeof DChatRequest>;
-
-function validateMessages(v: unknown) {
-  DMessages.validate(v).match(
-    () => console.log(JSON.stringify(v), "Accepted"),
-    (e) => console.log(JSON.stringify(v), "error:", e.message),
-  );
-}
-
-// [{"role":"user","content":"hello"}] Accepted
-validateMessages([{ role: "user", content: "hello" }]);
-
-// [{"role":"Peter","content":"hello"}] error: in 0.role: Expected one of "user", "assistant", "system", got "Peter"
-validateMessages([{ role: "Peter", content: "hello" }]);
-
-// [{"role":"assistant","content":42}] error: in 0.content: Expected string, got 42
-validateMessages([{ role: "assistant", content: 42 }]);
 
 export function chatRequest(userInput: string): Result<ChatRequest, Error> {
   return DChatRequest.parse(userInput).match(
@@ -102,7 +95,7 @@ chatRequest(JSON.stringify(
         content: "hello",
       },
     ],
-  },
+  } satisfies ChatRequest,
 )).map((req) => {
   console.log("ok", req);
 }).expect("Unexpected error");

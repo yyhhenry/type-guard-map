@@ -175,11 +175,20 @@ export function literal<T extends LiteralType[]>(
     });
 }
 
+export type NullableToOptional<T> =
+    & {
+        [K in keyof T as undefined extends T[K] ? K : never]?: Exclude<
+            T[K],
+            undefined
+        >;
+    }
+    & { [K in keyof T as undefined extends T[K] ? never : K]: T[K] };
+export type StructTypeFromMap<T extends Record<string, TypeHelper<unknown>>> =
+    NullableToOptional<{ [K in keyof T]: InferType<T[K]> }>;
+
 export function struct<T extends Record<string, TypeHelper<unknown>>>(
     fields: T,
-): TypeHelper<
-    { [K in keyof T]: InferType<T[K]> }
-> {
+): TypeHelper<StructTypeFromMap<T>> {
     return new TypeHelperImpl((v) => {
         if (!isPartialUnknown<Record<keyof T, unknown>>(v)) {
             return leafExpect("struct", v);
