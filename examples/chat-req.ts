@@ -30,7 +30,7 @@ export interface ChatRequest {
   stream?: boolean;
   messages: Messages;
 }
-// This is recommended for types with optional properties,
+// With optional fields, you need to define the type explicitly,
 // since { a?: T } is not the same as { a: T | undefined }.
 const DChatRequest: TypeHelper<ChatRequest> = struct({
   model: DString,
