@@ -118,9 +118,13 @@ chatRequest(JSON.stringify(
 import { useStorage } from "@vueuse/core";
 import type { TypeHelper } from "@yyhhenry/type-guard-map";
 
-function useCheckedStorage<T>(key: string, helper: TypeHelper<T>, defaultValue: T) {
-  return useStorage(key, defaultValue, undefined, {
-    sanitizer: {
+function useCheckedStorage<T>(
+  key: string,
+  helper: TypeHelper<T>,
+  defaultValue: T,
+) {
+  return useStorage<T>(key, defaultValue, undefined, {
+    serializer: {
       read: (text) => helper.parseWithDefault(text, defaultValue),
       write: JSON.stringify,
     },
