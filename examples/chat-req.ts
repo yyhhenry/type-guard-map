@@ -1,71 +1,54 @@
+import { err, fin, ok, type Result } from "@yyhhenry/rust-result";
 import {
-  asParser,
-  isArrayOf,
-  isLiteral,
-  isOptional,
-  withCondition,
+  DBoolean,
+  DString,
+  type InferType,
+  leafErr,
+  literal,
+  struct,
+  type TypeHelper,
 } from "@yyhhenry/type-guard-map";
 
-export interface Message {
-  role: "user" | "assistant" | "system";
-  content: string;
-}
-export interface ChatRequest {
-  model: string;
-  /**
-   * Default is true.
-   */
-  stream?: boolean;
-  messages: Message[];
-}
-export const isMessages = withCondition(
-  isArrayOf<Message>({
-    role: isLiteral("user", "assistant", "system"),
-    content: "string",
-  }),
-  (v, err) => {
-    if (v.length === 0) {
-      err?.("Messages should not be empty");
-      return false;
-    }
-    return true;
-  },
-);
-export const printWith = (prefix: string) => (msg: string) =>
-  console.log(prefix, msg);
-
-// true
-isMessages([{ role: "user", content: "hello" }]);
-
-// with role=Peter: in [0]: in role: Expected one of user, assistant, system, got Peter
-isMessages(
-  [{ role: "Peter", content: "hello" }],
-  printWith(`with role=Peter:`),
-);
-
-// with content=42: in [0]: in content: Expected string, got number
-isMessages([{ role: "system", content: 42 }], printWith(`with content=42:`));
-
-// with empty msgs: Messages should not be empty
-isMessages([], printWith(`with empty msgs:`));
-
-export const chatRequestParser = asParser<ChatRequest>({
-  model: "string",
-  stream: isOptional("boolean"),
-  messages: isMessages,
+const DMessage = struct({
+  role: literal("user", "assistant", "system"),
+  content: DString,
 });
 
-export function chatRequest(userInput: string) {
-  try {
-    const parsed = chatRequestParser(userInput);
-    parsed.stream ??= true;
-    return parsed;
-  } catch (e) {
-    if (e instanceof Error) {
-      console.log("Invalid ChatRequest:", e.message);
-    }
-    return undefined;
+const DMessages = DMessage.arr().cond((v) => {
+  if (v.length === 0) {
+    return leafErr("Messages should not be empty");
   }
+  return fin();
+});
+
+// Infer type from Helper
+export type Messages = InferType<typeof DMessages>;
+
+// Or create Helper from existing type
+export interface ChatRequest {
+  model: string;
+  stream?: boolean;
+  messages: Messages;
+}
+// This is recommended for types with optional properties,
+// since { a?: T } is not the same as { a: T | undefined }.
+const DChatRequest: TypeHelper<ChatRequest> = struct({
+  model: DString,
+  stream: DBoolean.opt(),
+  messages: DMessages,
+});
+
+export function chatRequest(userInput: string): Result<ChatRequest, Error> {
+  return DChatRequest.parse(userInput).match(
+    (req) => {
+      req.stream ??= false;
+      return ok(req);
+    },
+    (e) => {
+      console.log("Invalid ChatRequest:", e.message);
+      return err(e);
+    },
+  );
 }
 
 // Invalid ChatRequest: in messages: Messages should not be empty
@@ -76,3 +59,39 @@ chatRequest(
     messages: [],
   }),
 );
+
+// Invalid ChatRequest: in messages.0.content: Expected string, got 42
+chatRequest(
+  JSON.stringify({
+    model: "model",
+    stream: false,
+    messages: [
+      {
+        role: "user",
+        content: 42,
+      },
+    ],
+  }),
+);
+
+// Invalid ChatRequest: Expected property name or '}' in JSON at position 1 (line 1 column 2)
+chatRequest("{");
+
+// ok {
+//   model: "model",
+//   messages: [ { role: "user", content: "hello" } ],
+//   stream: false
+// }
+chatRequest(JSON.stringify(
+  {
+    model: "model",
+    messages: [
+      {
+        role: "user",
+        content: "hello",
+      },
+    ],
+  } satisfies ChatRequest,
+)).map((req) => {
+  console.log("ok", req);
+}).expect("Unexpected error");
