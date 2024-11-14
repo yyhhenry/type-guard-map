@@ -63,7 +63,7 @@ export interface TypeHelper<T> {
    * So internally, it uses `JSON.parse(JSON.stringify(obj))`,
    * but we will check the type of the result to ensure it is correct.
    *
-   * In most cases you can just `unwrap_()` the result.
+   * In most cases you can just `unwrap()` the result.
    * But you may need to handle the error,
    * if Date objects or other similar built-in objects are involved.
    */

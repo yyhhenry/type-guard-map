@@ -1,9 +1,9 @@
 {
   "version": "4",
   "specifiers": {
-    "jsr:@std/assert@^1.0.7": "1.0.7",
+    "jsr:@std/assert@^1.0.7": "1.0.8",
     "jsr:@std/internal@^1.0.5": "1.0.5",
-    "jsr:@yyhhenry/rust-result@0.4": "0.4.0",
+    "jsr:@yyhhenry/rust-result@0.5": "0.5.0",
     "npm:@types/node@*": "22.5.4"
   },
   "jsr": {
@@ -13,11 +13,17 @@
         "jsr:@std/internal"
       ]
     },
+    "@std/assert@1.0.8": {
+      "integrity": "ebe0bd7eb488ee39686f77003992f389a06c3da1bbd8022184804852b2fa641b",
+      "dependencies": [
+        "jsr:@std/internal"
+      ]
+    },
     "@std/internal@1.0.5": {
       "integrity": "54a546004f769c1ac9e025abd15a76b6671ddc9687e2313b67376125650dc7ba"
     },
-    "@yyhhenry/rust-result@0.4.0": {
-      "integrity": "70315c444bd3fa85980e33c633de7b0919bdec74af5d64b4f98098008a1a58ef"
+    "@yyhhenry/rust-result@0.5.0": {
+      "integrity": "26f5c4a2ab81d89d950d375b5cafa0ccdd0049238d3155bfd3b10f32802160a7"
     }
   },
   "npm": {
@@ -34,7 +40,7 @@
   "workspace": {
     "dependencies": [
       "jsr:@std/assert@^1.0.7",
-      "jsr:@yyhhenry/rust-result@0.4"
+      "jsr:@yyhhenry/rust-result@0.5"
     ]
   }
 }

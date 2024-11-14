@@ -27,13 +27,13 @@ Deno.test("TypeHelper (create, guard, validate)", () => {
   assertEquals(DHex.guard(123), false);
   assertEquals(DHex.guard("123z"), false);
 
-  assertEquals(DHex.validate("a000").unwrap_(), "a000");
+  assertEquals(DHex.validate("a000").unwrap(), "a000");
   assertEquals(
-    DHex.validate(123).unwrapErr_().message,
+    DHex.validate(123).unwrapErr().message,
     "Expected string, got 123",
   );
   assertEquals(
-    DHex.validate("123z").unwrapErr_().message,
+    DHex.validate("123z").unwrapErr().message,
     "Invalid hex string",
   );
 });
@@ -51,11 +51,11 @@ Deno.test("parse & parseWithDefault", () => {
   const _: TypeEq<Person, PersonExpected> = true;
 
   const person = DPerson.parse(JSON.stringify({ name: "Alice", age: 20 }));
-  assertEquals(person.unwrap_(), { name: "Alice", age: 20 });
+  assertEquals(person.unwrap(), { name: "Alice", age: 20 });
 
   const personErr = DPerson.parse(JSON.stringify({ name: "Alice" }));
   assertEquals(
-    personErr.unwrapErr_().message,
+    personErr.unwrapErr().message,
     "in age: Expected number, got undefined",
   );
 
@@ -73,7 +73,7 @@ Deno.test("clone", () => {
   });
   const person = { name: "Alice", age: 20 };
   const person2 = DPerson.clone(person);
-  assertEquals(person2.unwrap_(), person);
+  assertEquals(person2.unwrap(), person);
 
   // `JSON.stringify` transforms Date to string,
   // and our type helper will find the difference
@@ -86,7 +86,7 @@ Deno.test("clone", () => {
   const date = new Date();
   const date2 = DDate.clone(date);
   assertEquals(
-    date2.unwrapErr_().message,
+    date2.unwrapErr().message,
     "Expected Date, got " + JSON.stringify(date),
   );
 });
@@ -109,11 +109,11 @@ Deno.test("and & or", () => {
   > = true;
   assertEquals(DNameAndAge.guard({ name: "Alice", age: 20 }), true);
   assertEquals(
-    DNameAndAge.validate({ name: "Alice" }).unwrapErr_().message,
+    DNameAndAge.validate({ name: "Alice" }).unwrapErr().message,
     "in age: Expected number, got undefined",
   );
   assertEquals(
-    DNameAndAge.validate({ name: "Alice", age: "20" }).unwrapErr_().message,
+    DNameAndAge.validate({ name: "Alice", age: "20" }).unwrapErr().message,
     `in age: Expected number, got "20"`,
   );
 });
@@ -124,7 +124,7 @@ Deno.test("opt", () => {
   assertEquals(DOptString.guard("123"), true);
   assertEquals(DOptString.guard(undefined), true);
   assertEquals(
-    DOptString.validate(123).unwrapErr_().message,
+    DOptString.validate(123).unwrapErr().message,
     "Expected string, got 123",
   );
 });
@@ -135,7 +135,7 @@ Deno.test("arr", () => {
   assertEquals(DArrayOfString.guard(["123", "456"]), true);
   assertEquals(DArrayOfString.guard([]), true);
   assertEquals(
-    DArrayOfString.validate(["123", 456]).unwrapErr_().message,
+    DArrayOfString.validate(["123", 456]).unwrapErr().message,
     "in 1: Expected string, got 456",
   );
 });
@@ -147,7 +147,7 @@ Deno.test("rec", () => {
   assertEquals(DRecOfString.guard({ a: "123", b: "456" }), true);
   assertEquals(DRecOfString.guard({}), true);
   assertEquals(
-    DRecOfString.validate({ a: "123", b: 456 }).unwrapErr_().message,
+    DRecOfString.validate({ a: "123", b: 456 }).unwrapErr().message,
     "in b: Expected string, got 456",
   );
 });
@@ -162,7 +162,7 @@ Deno.test("cond", () => {
   const _: TypeEq<InferType<typeof DPositiveNumber>, number> = true;
   assertEquals(DPositiveNumber.guard(123), true);
   assertEquals(
-    DPositiveNumber.validate(-123).unwrapErr_().message,
+    DPositiveNumber.validate(-123).unwrapErr().message,
     "Expected positive number",
   );
 });
@@ -179,7 +179,7 @@ Deno.test("struct", () => {
   assertEquals(DPerson.guard({ name: "Alice" }), true);
   assertEquals(DPerson.guard({ name: "Alice", age: 20 }), true);
   assertEquals(
-    DPerson.validate({ name: "Alice", age: "20" }).unwrapErr_().message,
+    DPerson.validate({ name: "Alice", age: "20" }).unwrapErr().message,
     `in age: Expected number, got "20"`,
   );
 });
@@ -189,15 +189,15 @@ Deno.test("tuple", () => {
   const _: TypeEq<InferType<typeof DPair>, [string, number]> = true;
   assertEquals(DPair.guard(["Alice", 20]), true);
   assertEquals(
-    DPair.validate(["Alice"]).unwrapErr_().message,
+    DPair.validate(["Alice"]).unwrapErr().message,
     "tuple length 2, got 1",
   );
   assertEquals(
-    DPair.validate(["Alice", "20"]).unwrapErr_().message,
+    DPair.validate(["Alice", "20"]).unwrapErr().message,
     `in 1: Expected number, got "20"`,
   );
   assertEquals(
-    DPair.validate(["Alice", 20, "Bob"]).unwrapErr_().message,
+    DPair.validate(["Alice", 20, "Bob"]).unwrapErr().message,
     "tuple length 2, got 3",
   );
 });
