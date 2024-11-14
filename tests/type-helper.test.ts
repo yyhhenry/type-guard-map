@@ -74,6 +74,21 @@ Deno.test("clone", () => {
   const person = { name: "Alice", age: 20 };
   const person2 = DPerson.clone(person);
   assertEquals(person2.unwrap_(), person);
+
+  // `JSON.stringify` transforms Date to string,
+  // and our type helper will find the difference
+  const DDate = createHelper<Date>((v) => {
+    if (v instanceof Date) {
+      return fin();
+    }
+    return leafExpect("Date", v);
+  });
+  const date = new Date();
+  const date2 = DDate.clone(date);
+  assertEquals(
+    date2.unwrapErr_().message,
+    "Expected Date, got " + JSON.stringify(date),
+  );
 });
 
 Deno.test("and & or", () => {
