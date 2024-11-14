@@ -66,6 +66,16 @@ Deno.test("parse & parseWithDefault", () => {
   assertEquals(person2, { name: "Bob", age: 30 });
 });
 
+Deno.test("clone", () => {
+  const DPerson = struct({
+    name: DString,
+    age: DNumber,
+  });
+  const person = { name: "Alice", age: 20 };
+  const person2 = DPerson.clone(person);
+  assertEquals(person2.unwrap_(), person);
+});
+
 Deno.test("and & or", () => {
   const DStringOrNumber = DString.or(DNumber);
   const _: TypeEq<InferType<typeof DStringOrNumber>, string | number> = true;

@@ -1,4 +1,4 @@
-import { err, fin, type Result, wrapFn } from "@yyhhenry/rust-result";
+import { err, execFn, fin, type Result, wrapFn } from "@yyhhenry/rust-result";
 import { type ErrBuilder, leafExpect } from "./err-builder.ts";
 import { leafErr } from "../mod.ts";
 /**
@@ -41,7 +41,7 @@ export interface TypeHelper<T> {
    * Validates the value and returns itself if the value is valid.
    * Otherwise, returns an error.
    */
-  validate(v: unknown): Result<T, Error>;
+  validate(v: unknown): Result<T>;
   /**
    * Type guard function that checks if the value is valid.
    */
@@ -50,12 +50,24 @@ export interface TypeHelper<T> {
    * Parses a string and returns the parsed value if it is valid.
    * Otherwise, returns an error.
    */
-  parse(text: string): Result<T, Error>;
+  parse(text: string): Result<T>;
   /**
    * Parses a string and returns the parsed value if it is valid.
    * Otherwise, returns a default value.
    */
   parseWithDefault(text: string, defaultValue: T): T;
+  /**
+   * Clones an object of type T.
+   *
+   * `structuredClone()` is not compatible with Vue Proxy objects.
+   * So internally, it uses `JSON.parse(JSON.stringify(obj))`,
+   * but we will check the type of the result to ensure it is correct.
+   *
+   * In most cases you can just `unwrap_()` the result.
+   * But you may need to handle the error,
+   * if Date objects or other similar built-in objects are involved.
+   */
+  clone(obj: T): Result<T>;
 }
 /**
  * Infers the type of a `TypeHelper`.
@@ -165,6 +177,11 @@ class TypeHelperImpl<T> implements TypeHelper<T> {
   }
   parseWithDefault(text: string, defaultValue: T): T {
     return this.parse(text).unwrapOr(defaultValue);
+  }
+  clone(obj: T): Result<T> {
+    return execFn(() => JSON.parse(JSON.stringify(obj))).andThen((v) =>
+      this.validate(v)
+    );
   }
 }
 /**
