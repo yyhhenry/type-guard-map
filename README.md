@@ -115,20 +115,41 @@ chatRequest(JSON.stringify(
 ## Work with `@vueuse/core`
 
 ```ts
-import { useStorage } from "@vueuse/core";
-import type { TypeHelper } from "@yyhhenry/type-guard-map";
+import { useDebounceFn, useStorage } from '@vueuse/core';
+import { TypeHelper } from '@yyhhenry/type-guard-map';
+import cloneDeep from 'lodash/cloneDeep';
+import { ref, watch } from 'vue';
 
-function useCheckedStorage<T>(
+export function useCheckedStorage<T>(
   key: string,
   helper: TypeHelper<T>,
   defaultValue: T,
 ) {
-  return useStorage<T>(key, defaultValue, undefined, {
+  return useStorage<T>(key, cloneDeep(defaultValue), undefined, {
     serializer: {
-      read: (text) => helper.parseWithDefault(text, defaultValue),
+      read: (text) => helper.parseWithDefault(text, cloneDeep(defaultValue)),
       write: JSON.stringify,
     },
   });
+}
+
+export function useAutoSaving<T>(
+  key: string,
+  helper: TypeHelper<T>,
+  defaultValue: T,
+  afterSave?: () => void,
+  ms = 1000,
+  maxWait = 5000,
+) {
+  const storage = useCheckedStorage(key, helper, defaultValue);
+  const value = ref<T>(storage.value);
+  const save = () => {
+    storage.value = value.value;
+    afterSave?.();
+  };
+  const debouncedSave = useDebounceFn(save, ms, { maxWait });
+  watch(() => value.value, debouncedSave, { deep: true });
+  return { value, save };
 }
 ```
 
