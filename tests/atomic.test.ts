@@ -7,9 +7,7 @@ import {
   DUndefined,
   type InferType,
 } from "../mod.ts";
-
-type TypeEq<A, B> = (<T>() => T extends A ? 1 : 2) extends
-  <T>() => T extends B ? 1 : 2 ? true : false;
+import { assertType, type TypeEq } from "../src/assert-type.ts";
 
 Deno.test("atomic", () => {
   assertEquals(DString.guard("123"), true);
@@ -35,8 +33,8 @@ Deno.test("atomic", () => {
 
 Deno.test("literal", () => {
   const DRole = literal("user", "assistant", "system");
-  type Role = InferType<typeof DRole>; // "user" | "assistant" | "system"
-  const _: TypeEq<Role, "user" | "assistant" | "system"> = true;
+  type Role = InferType<typeof DRole>;
+  assertType<TypeEq<Role, "user" | "assistant" | "system">>();
 
   assertEquals(DRole.guard("user"), true);
   assertEquals(DRole.guard("assistant"), true);
@@ -46,8 +44,9 @@ Deno.test("literal", () => {
   assertEquals(DRole.guard(true), false);
 
   const DEnabled = literal("enabled", "disabled", null);
-  type Enabled = InferType<typeof DEnabled>; // "enabled" | "disabled" | null
-  const _1: TypeEq<Enabled, "enabled" | "disabled" | null> = true;
+  type Enabled = InferType<typeof DEnabled>;
+  assertType<TypeEq<Enabled, "enabled" | "disabled" | null>>();
+
   assertEquals(DEnabled.guard("enabled"), true);
   assertEquals(DEnabled.guard("disabled"), true);
   assertEquals(DEnabled.guard(null), true);

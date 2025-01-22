@@ -1,6 +1,7 @@
 import { err, execFn, fin, type Result, wrapFn } from "@yyhhenry/rust-result";
 import { type ErrBuilder, leafExpect } from "./err-builder.ts";
 import { leafErr } from "../mod.ts";
+import type { MergeProps } from "./assert-type.ts";
 /**
  * The `TypeHelper` interface is used to define type guards and parsers for a specific type.
  */
@@ -11,12 +12,27 @@ export interface TypeHelper<T> {
   or<U>(other: TypeHelper<U>): TypeHelper<T | U>;
   /**
    * Get type helper for (T & U).
+   * If you want to merge the properties of T and U, use `merge()` instead.
    */
   and<U>(other: TypeHelper<U>): TypeHelper<T & U>;
   /**
-   * Get type helper for (T | undefined).
+   * Same as `and()`, but merges the properties of T and U.
+   * For example, `{ a: number } & { b: string }` -> `{ a: number; b: string }`.
+   */
+  merge<U>(other: TypeHelper<U>): TypeHelper<MergeProps<T & U>>;
+  /**
+   * Get type helper for (T | undefined). Used with `struct()` for optional fields.
+   *
+   * Be aware that `undefined` is not a valid value in JSON and some other formats.
+   * For type `T | null`, use `orNull()` instead.
    */
   opt(): TypeHelper<T | undefined>;
+  /**
+   * Get type helper for (T | null). Used with JSON and some other formats.
+   *
+   * For type `T | undefined` and optional fields in `struct()`, use `opt()` instead.
+   */
+  orNull(): TypeHelper<T | null>;
   /**
    * Get type helper for T[].
    */
@@ -116,9 +132,30 @@ class TypeHelperImpl<T> implements TypeHelper<T> {
       return fin();
     });
   }
+  merge<U>(other: TypeHelper<U>): TypeHelper<MergeProps<T & U>> {
+    return createHelper((v) => {
+      const resT = this.innerGuard(v);
+      if (resT.isErr()) {
+        return resT;
+      }
+      const resU = other.validateBase(v);
+      if (resU.isErr()) {
+        return err(resU.e);
+      }
+      return fin();
+    });
+  }
   opt(): TypeHelper<T | undefined> {
     return createHelper((v) => {
       if (v === undefined) {
+        return fin();
+      }
+      return this.innerGuard(v);
+    });
+  }
+  orNull(): TypeHelper<T | null> {
+    return createHelper((v) => {
+      if (v === null) {
         return fin();
       }
       return this.innerGuard(v);
@@ -202,6 +239,39 @@ function isPartialUnknown<T>(v: unknown): v is PartialUnknown<T> {
 }
 
 /**
+ * Extracts optional fields produced by `TypeHelper.opt()` and `struct()`.
+ * For example, `{ a: number; b: string | undefined; c: string | undefined; }`
+ *          -> `"b" | "c"`.
+ *
+ * Since TypeHelper.opt() returns `T | undefined`,
+ * we need to turn them into actual optional fields.
+ */
+export type ExtractOptFields<T> = {
+  [K in keyof T]: undefined extends T[K] ? K : never;
+}[keyof T];
+
+/**
+ * Extracts optional fields produced by `TypeHelper.opt()` and `struct()`.
+ * For example, `{ a: number; b: string | undefined; }`
+ *           -> `{ a: number; b?: string | undefined; }`.
+ *
+ * Since TypeHelper.opt() returns `T | undefined`,
+ * we need to turn them into actual optional fields.
+ */
+export type HandleOptFields<T> = ExtractOptFields<T> extends never ? T
+  : Exclude<keyof T, ExtractOptFields<T>> extends never ? {
+      [K in ExtractOptFields<T>]?: T[K];
+    }
+  : MergeProps<
+    & {
+      [K in ExtractOptFields<T>]?: T[K];
+    }
+    & {
+      [K in Exclude<keyof T, ExtractOptFields<T>>]: T[K];
+    }
+  >;
+
+/**
  * Creates a `TypeHelper` object for a struct type.
  * @param fields - A Record of field names to type helpers.
  * @example
@@ -222,7 +292,7 @@ function isPartialUnknown<T>(v: unknown): v is PartialUnknown<T> {
  */
 export function struct<T extends Record<string, TypeHelper<unknown>>>(
   fields: T,
-): TypeHelper<{ [K in keyof T]: InferType<T[K]> }> {
+): TypeHelper<HandleOptFields<{ [K in keyof T]: InferType<T[K]> }>> {
   return createHelper((v) => {
     if (!isPartialUnknown<Record<keyof T, unknown>>(v)) {
       return leafExpect("struct", v);

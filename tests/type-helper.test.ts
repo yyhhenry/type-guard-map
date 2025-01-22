@@ -1,16 +1,9 @@
 import { assertEquals } from "@std/assert";
 import { DNumber, DString, leafErr, leafExpect } from "../mod.ts";
-import {
-  createHelper,
-  type InferType,
-  struct,
-  type TypeHelper,
-} from "../src/type-helper.ts";
+import { createHelper, type InferType, struct } from "../src/type-helper.ts";
 import { fin } from "@yyhhenry/rust-result";
 import { tuple } from "../src/type-helper.ts";
-
-type TypeEq<A, B> = (<T>() => T extends A ? 1 : 2) extends
-  <T>() => T extends B ? 1 : 2 ? true : false;
+import { assertType, type TypeEq } from "../src/assert-type.ts";
 
 Deno.test("TypeHelper (create, guard, validate)", () => {
   const DHex = createHelper<string>((v) => {
@@ -48,7 +41,7 @@ Deno.test("parse & parseWithDefault", () => {
     age: DNumber,
   });
   type Person = InferType<typeof DPerson>;
-  const _: TypeEq<Person, PersonExpected> = true;
+  assertType<TypeEq<Person, PersonExpected>>();
 
   const person = DPerson.parse(JSON.stringify({ name: "Alice", age: 20 }));
   assertEquals(person.unwrap(), { name: "Alice", age: 20 });
@@ -91,36 +84,50 @@ Deno.test("clone", () => {
   );
 });
 
-Deno.test("and & or", () => {
+Deno.test("and & merge & or", () => {
   const DStringOrNumber = DString.or(DNumber);
-  const _: TypeEq<InferType<typeof DStringOrNumber>, string | number> = true;
+  assertType<TypeEq<InferType<typeof DStringOrNumber>, string | number>>();
+
   assertEquals(DStringOrNumber.guard("123"), true);
   assertEquals(DStringOrNumber.guard(123), true);
   assertEquals(DStringOrNumber.guard(true), false);
 
-  const DNameAndAge = struct({
+  const DNameWithAge_And = struct({
     name: DString,
   }).and(struct({
     age: DNumber,
   }));
-  const _1: TypeEq<
-    InferType<typeof DNameAndAge>,
-    { name: string } & { age: number }
-  > = true;
-  assertEquals(DNameAndAge.guard({ name: "Alice", age: 20 }), true);
+  assertType<
+    TypeEq<
+      InferType<typeof DNameWithAge_And>,
+      { name: string } & { age: number }
+    >
+  >(); // This keeps the original & operator
+
+  const DNameWithAge = struct({
+    name: DString,
+  }).merge(struct({
+    age: DNumber,
+  }));
+  assertType<
+    TypeEq<InferType<typeof DNameWithAge>, { name: string; age: number }>
+  >();
+
+  assertEquals(DNameWithAge.guard({ name: "Alice", age: 20 }), true);
   assertEquals(
-    DNameAndAge.validate({ name: "Alice" }).unwrapErr().message,
+    DNameWithAge.validate({ name: "Alice" }).unwrapErr().message,
     "in age: Expected number, got undefined",
   );
   assertEquals(
-    DNameAndAge.validate({ name: "Alice", age: "20" }).unwrapErr().message,
+    DNameWithAge.validate({ name: "Alice", age: "20" }).unwrapErr().message,
     `in age: Expected number, got "20"`,
   );
 });
 
 Deno.test("opt", () => {
   const DOptString = DString.opt();
-  const _: TypeEq<InferType<typeof DOptString>, string | undefined> = true;
+  assertType<TypeEq<InferType<typeof DOptString>, string | undefined>>();
+
   assertEquals(DOptString.guard("123"), true);
   assertEquals(DOptString.guard(undefined), true);
   assertEquals(
@@ -131,7 +138,8 @@ Deno.test("opt", () => {
 
 Deno.test("arr", () => {
   const DArrayOfString = DString.arr();
-  const _: TypeEq<InferType<typeof DArrayOfString>, string[]> = true;
+  assertType<TypeEq<InferType<typeof DArrayOfString>, string[]>>();
+
   assertEquals(DArrayOfString.guard(["123", "456"]), true);
   assertEquals(DArrayOfString.guard([]), true);
   assertEquals(
@@ -142,8 +150,8 @@ Deno.test("arr", () => {
 
 Deno.test("rec", () => {
   const DRecOfString = DString.rec();
-  const _: TypeEq<InferType<typeof DRecOfString>, Record<string, string>> =
-    true;
+  assertType<TypeEq<InferType<typeof DRecOfString>, Record<string, string>>>();
+
   assertEquals(DRecOfString.guard({ a: "123", b: "456" }), true);
   assertEquals(DRecOfString.guard({}), true);
   assertEquals(
@@ -159,7 +167,8 @@ Deno.test("cond", () => {
     }
     return leafErr("Expected positive number");
   });
-  const _: TypeEq<InferType<typeof DPositiveNumber>, number> = true;
+  assertType<TypeEq<InferType<typeof DPositiveNumber>, number>>();
+
   assertEquals(DPositiveNumber.guard(123), true);
   assertEquals(
     DPositiveNumber.validate(-123).unwrapErr().message,
@@ -172,10 +181,12 @@ Deno.test("struct", () => {
     name: string;
     age?: number;
   }
-  const DPerson: TypeHelper<Person> = struct({
+  const DPerson = struct({
     name: DString,
     age: DNumber.opt(),
   });
+  assertType<TypeEq<InferType<typeof DPerson>, Person>>();
+
   assertEquals(DPerson.guard({ name: "Alice" }), true);
   assertEquals(DPerson.guard({ name: "Alice", age: 20 }), true);
   assertEquals(
@@ -186,7 +197,8 @@ Deno.test("struct", () => {
 
 Deno.test("tuple", () => {
   const DPair = tuple(DString, DNumber);
-  const _: TypeEq<InferType<typeof DPair>, [string, number]> = true;
+  assertType<TypeEq<InferType<typeof DPair>, [string, number]>>();
+
   assertEquals(DPair.guard(["Alice", 20]), true);
   assertEquals(
     DPair.validate(["Alice"]).unwrapErr().message,
