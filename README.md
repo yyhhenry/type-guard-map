@@ -6,8 +6,6 @@ You can create type helpers in a functional way, and then use them as type guard
 
 You can infer TypeScript types from the type helpers, or create type helpers from existing types.
 
-With optional fields, you need to define the type explicitly, since `{ a?: T }` is not the same as `{ a: T | undefined }`.
-
 **User friendly error messages** are automatically generated, and you can do additional validation with `cond()`, which allows you to return a custom error message.
 
 ## Example
@@ -21,7 +19,6 @@ import {
   leafErr,
   literal,
   struct,
-  type TypeHelper,
 } from "@yyhhenry/type-guard-map";
 
 const DMessage = struct({
@@ -35,23 +32,14 @@ const DMessages = DMessage.arr().cond((v) => {
   }
   return fin();
 });
-
-// Infer type from Helper
 export type Messages = InferType<typeof DMessages>;
 
-// Or create Helper from existing type
-export interface ChatRequest {
-  model: string;
-  stream?: boolean;
-  messages: Messages;
-}
-// With optional fields, you need to define the type explicitly,
-// since { a?: T } is not the same as { a: T | undefined }.
-const DChatRequest: TypeHelper<ChatRequest> = struct({
+const DChatRequest = struct({
   model: DString,
   stream: DBoolean.opt(),
   messages: DMessages,
 });
+export type ChatRequest = InferType<typeof DChatRequest>;
 
 export function chatRequest(userInput: string): Result<ChatRequest, Error> {
   return DChatRequest.parse(userInput).match(
